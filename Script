@@ -1,5 +1,10 @@
--- CELESTIA HUB v8.1 - PRISON LIFE - CLEAN VERSION
-repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+-- CELESTIA HUB v8.1 - PRISON LIFE - FINAL WORKING VERSION
+-- PASTE THIS INTO YOUR GITHUB REPO
+
+-- Wait for everything
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game.Players.LocalPlayer
+repeat task.wait() until game.Players.LocalPlayer:FindFirstChild("PlayerGui")
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,213 +14,216 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local playerGui = player.PlayerGui
 
+-- Game check
 if game.PlaceId ~= 155615604 then
-    warn("Wrong game!")
+    warn("Wrong game! Use in Prison Life.")
     return
 end
 
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- === STATE ===
-local FlyEnabled, FlySpeed, FlyBV = false, 60, nil
-local ESP_Enabled, ESP_Loop, ESP_Objects = false, nil, {}
-local AutoArrest_Enabled, ArrestLoop = false, nil
+-- State
+local FlyEnabled = false
+local FlySpeed = 60
+local FlyBV = nil
+local ESP_Enabled = false
+local ESP_Loop = nil
+local ESP_Objects = {}
 
--- === DELAY ===
-local function delay() task.wait(0.2 + math.random()*0.4) end
+-- Delay
+local function delay() task.wait(0.2 + math.random() * 0.4) end
 local function fire(r, ...) pcall(function() r:FireServer(...) end) delay() end
 
--- === GUI ===
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CelestiaHub"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- === GUI (WITH ERROR HANDLING) ===
+local success, err = pcall(function()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "CelestiaHub"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 400, 0, 450)
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
-mainFrame.BackgroundColor3 = Color3.fromRGB(250,248,255)
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0, 400, 0, 450)
+    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(250, 248, 255)
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Visible = true
+    mainFrame.Parent = screenGui
 
--- Title
-local title = Instance.new("Frame")
-title.Size = UDim2.new(1,0,0,50)
-title.BackgroundColor3 = Color3.fromRGB(180,140,255)
-title.Parent = mainFrame
-Instance.new("UICorner", title).CornerRadius = UDim.new(0,12)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = mainFrame
 
-local label = Instance.new("TextLabel")
-label.Text = "Celestia Hub v8.1"
-label.Size = UDim2.new(1,-60,1,0)
-label.Position = UDim2.new(0,15,0,0)
-label.BackgroundTransparency = 1
-label.TextColor3 = Color3.new(1,1,1)
-label.Font = Enum.Font.GothamBold
-label.TextSize = 20
-label.TextXAlignment = Enum.TextXAlignment.Left
-label.Parent = title
+    -- Title
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.BackgroundColor3 = Color3.fromRGB(180, 140, 255)
+    titleBar.Parent = mainFrame
+    local tc = Instance.new("UICorner", titleBar)
+    tc.CornerRadius = UDim.new(0, 12)
 
--- Close
-local close = Instance.new("TextButton")
-close.Text = "×"
-close.Size = UDim2.new(0,30,1,0)
-close.Position = UDim2.new(1,-35,0,0)
-close.BackgroundTransparency = 1
-close.TextColor3 = Color3.new(1,1,1)
-close.Font = Enum.Font.GothamBold
-close.TextSize = 24
-close.Parent = title
-close.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Text = "Celestia Hub v8.1"
+    titleLabel.Size = UDim2.new(1, -60, 1, 0)
+    titleLabel.Position = UDim2.new(0, 15, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.TextColor3 = Color3.new(1,1,1)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 20
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = titleBar
 
--- === TABS ===
-local tabFrame = Instance.new("Frame")
-tabFrame.Size = UDim2.new(1,0,0,40)
-tabFrame.Position = UDim2.new(0,0,0,50)
-tabFrame.BackgroundColor3 = Color3.fromRGB(240,235,255)
-tabFrame.Parent = mainFrame
+    -- Close Button
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Text = "×"
+    closeBtn.Size = UDim2.new(0, 30, 1, 0)
+    closeBtn.Position = UDim2.new(1, -35, 0, 0)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.TextColor3 = Color3.new(1,1,1)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 24
+    closeBtn.Parent = titleBar
+    closeBtn.MouseButton1Click:Connect(function()
+        for _, v in ESP_Objects do pcall(function() v:Remove() end) end
+        if ESP_Loop then ESP_Loop:Disconnect() end
+        screenGui:Destroy()
+        print("Celestia Hub: Closed")
+    end)
 
-local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1,-20,1,-110)
-scroll.Position = UDim2.new(0,10,0,95)
-scroll.BackgroundTransparency = 1
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scroll.Parent = mainFrame
+    -- Scroll Frame
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -20, 1, -70)
+    scroll.Position = UDim2.new(0, 10, 0, 60)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 6
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = mainFrame
 
-local Tabs = {}
-local function makeTab(name)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,100,1,0)
-    btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(240,235,255)
-    btn.TextColor3 = Color3.fromRGB(70,70,70)
-    btn.Font = Enum.Font.GothamBold
-    btn.Parent = tabFrame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = scroll
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1,0,0,0)
-    frame.BackgroundTransparency = 1
-    frame.Visible = name == "Main"
-    frame.Parent = scroll
+    -- Toggle Function
+    local function createToggle(name, callback)
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 0, 40)
+        frame.BackgroundColor3 = Color3.fromRGB(245, 240, 255)
+        frame.Parent = scroll
+        local c = Instance.new("UICorner", frame)
+        c.CornerRadius = UDim.new(0, 10)
 
-    btn.MouseButton1Click:Connect(function()
-        for n, t in Tabs do
-            t.frame.Visible = n == name
-            t.btn.BackgroundColor3 = n == name and Color3.fromRGB(180,140,255) or Color3.fromRGB(240,235,255)
-            t.btn.TextColor3 = n == name and Color3.new(1,1,1) or Color3.fromRGB(70,70,70)
+        local label = Instance.new("TextLabel")
+        label.Text = name
+        label.Size = UDim2.new(1, -60, 1, 0)
+        label.Position = UDim2.new(0, 12, 0, 0)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(70, 70, 70)
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 16
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = frame
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 42, 0, 20)
+        btn.Position = UDim2.new(1, -52, 0.5, -10)
+        btn.BackgroundColor3 = Color3.fromRGB(180, 140, 255)
+        btn.Text = "OFF"
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 12
+        btn.Parent = frame
+        local bc = Instance.new("UICorner", btn)
+        bc.CornerRadius = UDim.new(0, 8)
+
+        local state = false
+        btn.MouseButton1Click:Connect(function()
+            state = not state
+            btn.Text = state and "ON" or "OFF"
+            btn.BackgroundColor3 = state and Color3.fromRGB(200, 160, 255) or Color3.fromRGB(180, 140, 255)
+            callback(state)
+        end)
+    end
+
+    -- === FEATURES ===
+    createToggle("Fly", function(state)
+        FlyEnabled = state
+        if state then
+            FlyBV = Instance.new("BodyVelocity")
+            FlyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            FlyBV.Velocity = Vector3.new()
+            FlyBV.Parent = rootPart
+            task.spawn(function()
+                while FlyEnabled and task.wait() do
+                    local cam = Workspace.CurrentCamera
+                    local dir = Vector3.new()
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+                    FlyBV.Velocity = dir.Magnitude > 0 and dir.unit * FlySpeed or Vector3.new()
+                end
+            end)
+        else
+            if FlyBV then FlyBV:Destroy() FlyBV = nil end
         end
     end)
 
-    Tabs[name] = {btn=btn, frame=frame}
-    return frame
-end
+    createToggle("ESP", function(state)
+        ESP_Enabled = state
+        if state then
+            if ESP_Loop then ESP_Loop:Disconnect() end
+            ESP_Objects = {}
+            ESP_Loop = RunService.RenderStepped:Connect(function()
+                if not ESP_Enabled then return end
+                for _, p in Players:GetPlayers() do
+                    if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+                        local head = p.Character.Head
+                        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            local sp, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                            if onScreen then
+                                local dist = math.floor((hrp.Position - rootPart.Position).Magnitude)
+                                local box = ESP_Objects[p] or Drawing.new("Square")
+                                local name = ESP_Objects[p] and ESP_Objects[p].name or Drawing.new("Text")
 
-local mainTab = makeTab("Main")
-local extraTab = makeTab("Extra")
+                                local size = (300 / sp.Z) * 2
+                                box.Size = Vector2.new(size, size * 1.8)
+                                box.Position = Vector2.new(sp.X - size/2, sp.Y - size * 0.9)
+                                box.Thickness = 2
+                                box.Color = Color3.new(1,0,0)
+                                box.Filled = false
+                                box.Transparency = 1
+                                box.Visible = true
 
--- === TOGGLE ===
-local function toggle(parent, name, callback)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1,0,0,40)
-    frame.BackgroundColor3 = Color3.fromRGB(245,240,255)
-    frame.Parent = parent
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+                                name.Text = p.Name .. " [" .. dist .. "m]"
+                                name.Position = Vector2.new(sp.X, sp.Y - size * 0.9 - 20)
+                                name.Size = 16
+                                name.Center = true
+                                name.Outline = true
+                                name.Color = Color3.new(1,1,1)
+                                name.Visible = true
 
-    local label = Instance.new("TextLabel")
-    label.Text = name
-    label.Size = UDim2.new(1,-60,1,0)
-    label.Position = UDim2.new(0,12,0,0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(70,70,70)
-    label.Font = Enum.Font.Gotham
-    label.Parent = frame
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,42,0,20)
-    btn.Position = UDim2.new(1,-52,0.5,-10)
-    btn.BackgroundColor3 = Color3.fromRGB(180,140,255)
-    btn.Text = "OFF"
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Parent = frame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
-
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        btn.Text = state and "ON" or "OFF"
-        btn.BackgroundColor3 = state and Color3.fromRGB(200,160,255) or Color3.fromRGB(180,140,255)
-        callback(state)
-    end)
-end
-
--- === FLY ===
-toggle(mainTab, "Fly", function(state)
-    FlyEnabled = state
-    if state then
-        FlyBV = Instance.new("BodyVelocity")
-        FlyBV.MaxForce = Vector3.new(1e5,1e5,1e5)
-        FlyBV.Parent = rootPart
-        task.spawn(function()
-            while FlyEnabled do
-                local cam = Workspace.CurrentCamera
-                local dir = Vector3.new()
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-                FlyBV.Velocity = dir.Magnitude > 0 and dir.unit * FlySpeed or Vector3.new()
-                task.wait()
-            end
-        end)
-    else
-        if FlyBV then FlyBV:Destroy() end
-    end
-end)
-
--- === ESP ===
-toggle(extraTab, "ESP", function(state)
-    ESP_Enabled = state
-    if state then
-        ESP_Loop = RunService.RenderStepped:Connect(function()
-            for _, p in Players:GetPlayers() do
-                if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                    local head = p.Character.Head
-                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local sp, on = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
-                        if on then
-                            local dist = math.floor((hrp.Position - rootPart.Position).Magnitude)
-                            local box = ESP_Objects[p] or Drawing.new("Square")
-                            local name = ESP_Objects[p] and ESP_Objects[p].name or Drawing.new("Text")
-
-                            local size = (300 / sp.Z) * 2
-                            box.Size = Vector2.new(size, size*1.8)
-                            box.Position = Vector2.new(sp.X - size/2, sp.Y - size*0.9)
-                            box.Thickness = 2; box.Color = Color3.new(1,0,0); box.Filled = false; box.Visible = true
-
-                            name.Text = p.Name.." ["..dist.."m]"
-                            name.Position = Vector2.new(sp.X, sp.Y - size*0.9 - 20)
-                            name.Size = 16; name.Center = true; name.Outline = true; name.Color = Color3.new(1,1,1); name.Visible = true
-
-                            ESP_Objects[p] = {box=box, name=name}
+                                ESP_Objects[p] = {box = box, name = name}
+                            end
                         end
                     end
                 end
+            end)
+        else
+            if ESP_Loop then ESP_Loop:Disconnect() ESP_Loop = nil end
+            for _, v in ESP_Objects do
+                pcall(function() v.box:Remove() v.name:Remove() end)
             end
-        end)
-    else
-        if ESP_Loop then ESP_Loop:Disconnect() end
-        for _, v in ESP_Objects do pcall(function() v.box:Remove() v.name:Remove() end) end
-        ESP_Objects = {}
-    end
+            ESP_Objects = {}
+        end
+    end)
+
+    print("CELESTIA HUB v8.1 LOADED – GUI VISIBLE")
 end)
 
-print("CELESTIA HUB LOADED – GUI VISIBLE")
+if not success then
+    warn("GUI FAILED TO LOAD: " .. tostring(err))
+end
