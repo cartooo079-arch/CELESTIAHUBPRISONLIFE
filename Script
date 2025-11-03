@@ -1,7 +1,7 @@
--- CELESTIA HUB v8.1 - PRISON LIFE - FINAL WORKING VERSION
--- PASTE THIS INTO YOUR GITHUB REPO
+-- CELESTIA HUB v8.1 - PRISON LIFE - FIXED & WORKING
+-- https://github.com/cartooo079-arch/CELESTIAHUBPRISONLIFE
 
--- Wait for everything
+-- === WAIT FOR EVERYTHING ===
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.Players.LocalPlayer
 repeat task.wait() until game.Players.LocalPlayer:FindFirstChild("PlayerGui")
@@ -14,7 +14,7 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local playerGui = player.PlayerGui
 
--- Game check
+-- === GAME CHECK ===
 if game.PlaceId ~= 155615604 then
     warn("Wrong game! Use in Prison Life.")
     return
@@ -23,7 +23,7 @@ end
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- State
+-- === STATE ===
 local FlyEnabled = false
 local FlySpeed = 60
 local FlyBV = nil
@@ -31,11 +31,14 @@ local ESP_Enabled = false
 local ESP_Loop = nil
 local ESP_Objects = {}
 
--- Delay
+-- === ANTI-DETECT DELAY ===
 local function delay() task.wait(0.2 + math.random() * 0.4) end
-local function fire(r, ...) pcall(function() r:FireServer(...) end) delay() end
+local function fire(remote, ...)
+    pcall(function() remote:FireServer(...) end)
+    delay()
+end
 
--- === GUI (WITH ERROR HANDLING) ===
+-- === GUI WITH FULL ERROR PROTECTION ===
 local success, err = pcall(function()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "CelestiaHub"
@@ -50,18 +53,14 @@ local success, err = pcall(function()
     mainFrame.Draggable = true
     mainFrame.Visible = true
     mainFrame.Parent = screenGui
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
-
-    -- Title
+    -- Title Bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 50)
     titleBar.BackgroundColor3 = Color3.fromRGB(180, 140, 255)
     titleBar.Parent = mainFrame
-    local tc = Instance.new("UICorner", titleBar)
-    tc.CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
 
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Text = "Celestia Hub v8.1"
@@ -85,33 +84,32 @@ local success, err = pcall(function()
     closeBtn.TextSize = 24
     closeBtn.Parent = titleBar
     closeBtn.MouseButton1Click:Connect(function()
-        for _, v in ESP_Objects do pcall(function() v:Remove() end) end
+        for _, v in ESP_Objects do pcall(function() v.box:Remove() v.name:Remove() end) end
         if ESP_Loop then ESP_Loop:Disconnect() end
         screenGui:Destroy()
-        print("Celestia Hub: Closed")
+        print("Celestia Hub: Unloaded")
     end)
 
     -- Scroll Frame
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -20, 1, -70)
-    scroll.Position = UDim2.new(0, 10, 0, 60)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 6
-    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    scroll.Parent = mainFrame
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -20, 1, -70)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 60)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scrollFrame.Parent = mainFrame
 
     local layout = Instance.new("UIListLayout")
     layout.Padding = UDim.new(0, 10)
-    layout.Parent = scroll
+    layout.Parent = scrollFrame
 
-    -- Toggle Function
+    -- === TOGGLE FUNCTION ===
     local function createToggle(name, callback)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 40)
         frame.BackgroundColor3 = Color3.fromRGB(245, 240, 255)
-        frame.Parent = scroll
-        local c = Instance.new("UICorner", frame)
-        c.CornerRadius = UDim.new(0, 10)
+        frame.Parent = scrollFrame
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
         local label = Instance.new("TextLabel")
         label.Text = name
@@ -124,28 +122,27 @@ local success, err = pcall(function()
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = frame
 
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 42, 0, 20)
-        btn.Position = UDim2.new(1, -52, 0.5, -10)
-        btn.BackgroundColor3 = Color3.fromRGB(180, 140, 255)
-        btn.Text = "OFF"
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.Parent = frame
-        local bc = Instance.new("UICorner", btn)
-        bc.CornerRadius = UDim.new(0, 8)
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Size = UDim2.new(0, 42, 0, 20)
+        toggleBtn.Position = UDim2.new(1, -52, 0.5, -10)
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 140, 255)
+        toggleBtn.Text = "OFF"
+        toggleBtn.TextColor3 = Color3.new(1,1,1)
+        toggleBtn.Font = Enum.Font.GothamBold
+        toggleBtn.TextSize = 12
+        toggleBtn.Parent = frame
+        Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
 
         local state = false
-        btn.MouseButton1Click:Connect(function()
+        toggleBtn.MouseButton1Click:Connect(function()
             state = not state
-            btn.Text = state and "ON" or "OFF"
-            btn.BackgroundColor3 = state and Color3.fromRGB(200, 160, 255) or Color3.fromRGB(180, 140, 255)
+            toggleBtn.Text = state and "ON" or "OFF"
+            toggleBtn.BackgroundColor3 = state and Color3.fromRGB(200, 160, 255) or Color3.fromRGB(180, 140, 255)
             callback(state)
         end)
     end
 
-    -- === FEATURES ===
+    -- === FLY TOGGLE ===
     createToggle("Fly", function(state)
         FlyEnabled = state
         if state then
@@ -153,6 +150,7 @@ local success, err = pcall(function()
             FlyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
             FlyBV.Velocity = Vector3.new()
             FlyBV.Parent = rootPart
+
             task.spawn(function()
                 while FlyEnabled and task.wait() do
                     local cam = Workspace.CurrentCamera
@@ -166,11 +164,14 @@ local success, err = pcall(function()
                     FlyBV.Velocity = dir.Magnitude > 0 and dir.unit * FlySpeed or Vector3.new()
                 end
             end)
+            print("Fly: ON")
         else
             if FlyBV then FlyBV:Destroy() FlyBV = nil end
+            print("Fly: OFF")
         end
     end)
 
+    -- === ESP TOGGLE ===
     createToggle("ESP", function(state)
         ESP_Enabled = state
         if state then
@@ -186,7 +187,7 @@ local success, err = pcall(function()
                             local sp, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
                             if onScreen then
                                 local dist = math.floor((hrp.Position - rootPart.Position).Magnitude)
-                                local box = ESP_Objects[p] or Drawing.new("Square")
+                                local box = ESP_Objects[p] and ESP_Objects[p].box or Drawing.new("Square")
                                 local name = ESP_Objects[p] and ESP_Objects[p].name or Drawing.new("Text")
 
                                 local size = (300 / sp.Z) * 2
@@ -212,16 +213,18 @@ local success, err = pcall(function()
                     end
                 end
             end)
+            print("ESP: ON")
         else
             if ESP_Loop then ESP_Loop:Disconnect() ESP_Loop = nil end
             for _, v in ESP_Objects do
                 pcall(function() v.box:Remove() v.name:Remove() end)
             end
             ESP_Objects = {}
+            print("ESP: OFF")
         end
     end)
 
-    print("CELESTIA HUB v8.1 LOADED – GUI VISIBLE")
+    print("CELESTIA HUB v8.1 LOADED – GUI IS VISIBLE")
 end)
 
 if not success then
