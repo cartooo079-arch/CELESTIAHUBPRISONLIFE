@@ -1,51 +1,30 @@
--- Celestia Hub v5.0 - PRISON LIFE | 100% VISIBLE | FLY SLIDER + INVIS + AIMBOT
--- ALL FEATURES SHOW | ANTI-CHEAT SAFE | TESTED
+-- CELESTIA HUB v8.1 - PRISON LIFE - CLEAN VERSION
+repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local playerGui = player.PlayerGui
 
 if game.PlaceId ~= 155615604 then
-    warn("Wrong game! Use in Prison Life only.")
+    warn("Wrong game!")
     return
 end
 
 local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Anti-Cheat
-local function delay() task.wait(0.2 + math.random() * 0.4) end
-local function fire(remote, ...) pcall(remote.FireServer, remote, ...) delay() end
-
 -- === STATE ===
-local DarkMode = false
-local FlySpeed = 60
-local FlyEnabled = false
-local InvisEnabled = false
-local AimbotEnabled = false
-local ESP_Enabled = false
-local AutoArrest_Enabled = false
-local GunMods_Enabled = false
+local FlyEnabled, FlySpeed, FlyBV = false, 60, nil
+local ESP_Enabled, ESP_Loop, ESP_Objects = false, nil, {}
+local AutoArrest_Enabled, ArrestLoop = false, nil
 
-local ESP_Objects = {}
-local AimbotLoop = nil
-local ArrestLoop = nil
-local FlyBV = nil
-
--- === COLORS ===
-local LIGHT_BG = Color3.fromRGB(250, 248, 255)
-local DARK_BG = Color3.fromRGB(30, 30, 35)
-local LIGHT_TEXT = Color3.fromRGB(70, 70, 70)
-local DARK_TEXT = Color3.fromRGB(220, 220, 220)
-local PURPLE = Color3.fromRGB(180, 140, 255)
-local LIGHT_PURPLE = Color3.fromRGB(200, 160, 255)
+-- === DELAY ===
+local function delay() task.wait(0.2 + math.random()*0.4) end
+local function fire(r, ...) pcall(function() r:FireServer(...) end) delay() end
 
 -- === GUI ===
 local screenGui = Instance.new("ScreenGui")
@@ -54,399 +33,189 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
+mainFrame.BackgroundColor3 = Color3.fromRGB(250,248,255)
+mainFrame.Active = true
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
-mainFrame.BackgroundColor3 = LIGHT_BG
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -210)
-mainFrame.Size = UDim2.new(0, 400, 0, 420)
-mainFrame.Visible = true
-mainFrame.ClipsDescendants = true
-local corner = Instance.new("UICorner", mainFrame); corner.CornerRadius = UDim.new(0, 16)
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
 
 -- Title
-local titleBar = Instance.new("Frame")
-titleBar.Parent = mainFrame
-titleBar.BackgroundColor3 = PURPLE
-titleBar.Size = UDim2.new(1, 0, 0, 50)
-local tCorner = Instance.new("UICorner", titleBar); tCorner.CornerRadius = UDim.new(0, 16)
+local title = Instance.new("Frame")
+title.Size = UDim2.new(1,0,0,50)
+title.BackgroundColor3 = Color3.fromRGB(180,140,255)
+title.Parent = mainFrame
+Instance.new("UICorner", title).CornerRadius = UDim.new(0,12)
 
-local title = Instance.new("TextLabel")
-title.Parent = titleBar
-title.BackgroundTransparency = 1
-title.Size = UDim2.new(1, -100, 1, 0)
-title.Position = UDim2.new(0, 15, 0, 0)
-title.Text = "Celestia Hub v5.0"
-title.TextColor3 = Color3.new(1,1,1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 22
-title.TextXAlignment = Enum.TextXAlignment.Left
+local label = Instance.new("TextLabel")
+label.Text = "Celestia Hub v8.1"
+label.Size = UDim2.new(1,-60,1,0)
+label.Position = UDim2.new(0,15,0,0)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.new(1,1,1)
+label.Font = Enum.Font.GothamBold
+label.TextSize = 20
+label.TextXAlignment = Enum.TextXAlignment.Left
+label.Parent = title
 
--- Min/Close
-local minBtn = Instance.new("TextButton")
-minBtn.Parent = titleBar
-minBtn.BackgroundTransparency = 1
-minBtn.Position = UDim2.new(1, -75, 0, 0)
-minBtn.Size = UDim2.new(0, 35, 1, 0)
-minBtn.Text = "−"
-minBtn.TextColor3 = Color3.new(1,1,1)
-minBtn.Font = Enum.Font.GothamBold
-minBtn.TextSize = 28
-
-local minimized = false
-minBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    mainFrame.Size = minimized and UDim2.new(0,400,0,50) or UDim2.new(0,400,0,420)
-    tabFrame.Visible = not minimized
-    scrollFrame.Visible = not minimized
-    minBtn.Text = minimized and "+" or "−"
+-- Close
+local close = Instance.new("TextButton")
+close.Text = "×"
+close.Size = UDim2.new(0,30,1,0)
+close.Position = UDim2.new(1,-35,0,0)
+close.BackgroundTransparency = 1
+close.TextColor3 = Color3.new(1,1,1)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 24
+close.Parent = title
+close.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
 end)
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Parent = titleBar
-closeBtn.BackgroundTransparency = 1
-closeBtn.Position = UDim2.new(1, -40, 0, 0)
-closeBtn.Size = UDim2.new(0, 35, 1, 0)
-closeBtn.Text = "×"
-closeBtn.TextColor3 = Color3.new(1,1,1)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 28
-closeBtn.MouseButton1Click:Connect(function() 
-    for _, v in ESP_Objects do v:Remove() end
-    if AimbotLoop then task.cancel(AimbotLoop) end
-    if ArrestLoop then task.cancel(ArrestLoop) end
-    screenGui:Destroy() 
-end)
-
--- Draggable
-local dragging = false
-local dragStart, startPos
-titleBar.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = i.Position
-        startPos = mainFrame.Position
-    end
-end)
-titleBar.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = i.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-end)
-
--- Tabs
+-- === TABS ===
 local tabFrame = Instance.new("Frame")
-tabFrame.Parent = mainFrame
-tabFrame.BackgroundColor3 = Color3.fromRGB(240, 235, 255)
-tabFrame.Position = UDim2.new(0,0,0,50)
 tabFrame.Size = UDim2.new(1,0,0,40)
+tabFrame.Position = UDim2.new(0,0,0,50)
+tabFrame.BackgroundColor3 = Color3.fromRGB(240,235,255)
+tabFrame.Parent = mainFrame
 
-local tabLayout = Instance.new("UIListLayout")
-tabLayout.Parent = tabFrame
-tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0,3)
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1,-20,1,-110)
+scroll.Position = UDim2.new(0,10,0,95)
+scroll.BackgroundTransparency = 1
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.Parent = mainFrame
 
--- Scroll
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Parent = mainFrame
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.Position = UDim2.new(0,10,0,100)
-scrollFrame.Size = UDim2.new(1,-20,1,-115)
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor3 = PURPLE
-scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
-scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
-local contentLayout = Instance.new("UIListLayout")
-contentLayout.Parent = scrollFrame
-contentLayout.Padding = UDim.new(0,10)
-contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- === TAB SYSTEM ===
 local Tabs = {}
 local function makeTab(name)
     local btn = Instance.new("TextButton")
-    btn.Parent = tabFrame
-    btn.BackgroundColor3 = Color3.fromRGB(240,235,255)
-    btn.Size = UDim2.new(0,125,1,0)
+    btn.Size = UDim2.new(0,100,1,0)
     btn.Text = name
-    btn.TextColor3 = LIGHT_TEXT
+    btn.BackgroundColor3 = Color3.fromRGB(240,235,255)
+    btn.TextColor3 = Color3.fromRGB(70,70,70)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 16
-    local c = Instance.new("UICorner", btn); c.CornerRadius = UDim.new(0,10)
+    btn.Parent = tabFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
     local frame = Instance.new("Frame")
-    frame.Parent = scrollFrame
+    frame.Size = UDim2.new(1,0,0,0)
     frame.BackgroundTransparency = 1
-    frame.Visible = (name == "Main")
-    frame.LayoutOrder = #Tabs + 1
+    frame.Visible = name == "Main"
+    frame.Parent = scroll
 
     btn.MouseButton1Click:Connect(function()
-        for n,t in Tabs do
-            t.frame.Visible = (n == name)
-            t.btn.BackgroundColor3 = (n == name) and PURPLE or Color3.fromRGB(240,235,255)
-            t.btn.TextColor3 = (n == name) and Color3.new(1,1,1) or LIGHT_TEXT
+        for n, t in Tabs do
+            t.frame.Visible = n == name
+            t.btn.BackgroundColor3 = n == name and Color3.fromRGB(180,140,255) or Color3.fromRGB(240,235,255)
+            t.btn.TextColor3 = n == name and Color3.new(1,1,1) or Color3.fromRGB(70,70,70)
         end
     end)
 
-    Tabs[name] = {btn = btn, frame = frame}
+    Tabs[name] = {btn=btn, frame=frame}
     return frame
 end
 
 local mainTab = makeTab("Main")
-local tpTab = makeTab("Teleport")
-local teamTab = makeTab("Teams")
 local extraTab = makeTab("Extra")
 
--- === UI HELPERS ===
-local function updateColors()
-    local bg = DarkMode and DARK_BG or LIGHT_BG
-    local text = DarkMode and DARK_TEXT or LIGHT_TEXT
-    mainFrame.BackgroundColor3 = bg
-    titleBar.BackgroundColor3 = DarkMode and Color3.fromRGB(50,40,70) or PURPLE
-    tabFrame.BackgroundColor3 = DarkMode and Color3.fromRGB(40,40,45) or Color3.fromRGB(240,235,255)
-    for _, v in scrollFrame:GetDescendants() do
-        if v:IsA("Frame") and v.Name ~= "Slider" then
-            v.BackgroundColor3 = DarkMode and Color3.fromRGB(50,50,55) or Color3.fromRGB(245,240,255)
-        elseif v:IsA("TextLabel") or v:IsA("TextButton") then
-            v.TextColor3 = text
-        end
-    end
-end
-
-local function createToggle(p, name, on, off)
-    local f = Instance.new("Frame")
-    f.Parent = p
-    f.BackgroundColor3 = Color3.fromRGB(245,240,255)
-    f.Size = UDim2.new(1,0,0,40)
-    local c = Instance.new("UICorner", f); c.CornerRadius = UDim.new(0,10)
-
-    local l = Instance.new("TextLabel")
-    l.Parent = f
-    l.BackgroundTransparency = 1
-    l.Size = UDim2.new(1,-60,1,0)
-    l.Position = UDim2.new(0,12,0,0)
-    l.Text = name
-    l.TextColor3 = LIGHT_TEXT
-    l.Font = Enum.Font.Gotham
-    l.TextSize = 16
-    l.TextXAlignment = Enum.TextXAlignment.Left
-
-    local t = Instance.new("TextButton")
-    t.Parent = f
-    t.BackgroundColor3 = PURPLE
-    t.Position = UDim2.new(1,-52,0.5,-10)
-    t.Size = UDim2.new(0,42,0,20)
-    t.Text = "OFF"
-    t.TextColor3 = Color3.new(1,1,1)
-    t.Font = Enum.Font.GothamBold
-    t.TextSize = 12
-    local tc = Instance.new("UICorner", t); tc.CornerRadius = UDim.new(0,8)
-
-    local s = false
-    t.MouseButton1Click:Connect(function()
-        s = not s
-        t.Text = s and "ON" or "OFF"
-        t.BackgroundColor3 = s and LIGHT_PURPLE or PURPLE
-        if s then on() else off() end
-        updateColors()
-    end)
-    return t
-end
-
-local function createButton(p, name, cb)
-    local b = Instance.new("TextButton")
-    b.Parent = p
-    b.BackgroundColor3 = PURPLE
-    b.Size = UDim2.new(1,0,0,40)
-    b.Text = name
-    b.TextColor3 = Color3.new(1,1,1)
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 16
-    local c = Instance.new("UICorner", b); c.CornerRadius = UDim.new(0,10)
-    b.MouseButton1Click:Connect(function()
-        task.spawn(cb)
-        b.BackgroundColor3 = Color3.fromRGB(100,255,100)
-        delay()
-        b.BackgroundColor3 = PURPLE
-    end)
-end
-
--- === FLY SLIDER ===
-local function createFlySlider(p)
-    local f = Instance.new("Frame")
-    f.Parent = p
-    f.BackgroundColor3 = Color3.fromRGB(245,240,255)
-    f.Size = UDim2.new(1,0,0,50)
-    local c = Instance.new("UICorner", f); c.CornerRadius = UDim.new(0,10)
+-- === TOGGLE ===
+local function toggle(parent, name, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1,0,0,40)
+    frame.BackgroundColor3 = Color3.fromRGB(245,240,255)
+    frame.Parent = parent
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
     local label = Instance.new("TextLabel")
-    label.Parent = f
+    label.Text = name
+    label.Size = UDim2.new(1,-60,1,0)
+    label.Position = UDim2.new(0,12,0,0)
     label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1,-10,0.5,0)
-    label.Position = UDim2.new(0,10,0,0)
-    label.Text = "Fly Speed: 60"
-    label.TextColor3 = LIGHT_TEXT
+    label.TextColor3 = Color3.fromRGB(70,70,70)
     label.Font = Enum.Font.Gotham
-    label.TextSize = 16
-    label.TextXAlignment = Enum.TextXAlignment.Left
-
-    local back = Instance.new("Frame")
-    back.Parent = f
-    back.BackgroundColor3 = Color3.fromRGB(230,220,255)
-    back.Position = UDim2.new(0,10,0.5,8)
-    back.Size = UDim2.new(1,-70,0,8)
-    local bc = Instance.new("UICorner", back); bc.CornerRadius = UDim.new(0,4)
-
-    local fill = Instance.new("Frame")
-    fill.Parent = back
-    fill.BackgroundColor3 = PURPLE
-    fill.Size = UDim2.new(0.25,0,1,0)
-    local fc = Instance.new("UICorner", fill); fc.CornerRadius = UDim.new(0,4)
+    label.Parent = frame
 
     local btn = Instance.new("TextButton")
-    btn.Parent = back
-    btn.BackgroundColor3 = Color3.new(1,1,1)
-    btn.Size = UDim2.new(0,18,0,18)
-    btn.Position = UDim2.new(0.25,-9,0.5,-9)
-    btn.Text = ""
-    local btc = Instance.new("UICorner", btn); btc.CornerRadius = UDim.new(1,0)
+    btn.Size = UDim2.new(0,42,0,20)
+    btn.Position = UDim2.new(1,-52,0.5,-10)
+    btn.BackgroundColor3 = Color3.fromRGB(180,140,255)
+    btn.Text = "OFF"
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Parent = frame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
-    local val = Instance.new("TextLabel")
-    val.Parent = f
-    val.BackgroundTransparency = 1
-    val.Position = UDim2.new(1,-55,0.5,-10)
-    val.Size = UDim2.new(0,50,0,20)
-    val.Text = "60"
-    val.TextColor3 = PURPLE
-    val.Font = Enum.Font.GothamBold
-    val.TextSize = 14
-
-    local sliding = false
-    btn.MouseButton1Down:Connect(function() sliding = true end)
-    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then sliding = false end end)
-    UserInputService.InputChanged:Connect(function(i)
-        if sliding and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local rel = math.clamp((i.Position.X - back.AbsolutePosition.X) / back.AbsoluteSize.X, 0, 1)
-            fill.Size = UDim2.new(rel,0,1,0)
-            btn.Position = UDim2.new(rel,-9,0.5,-9)
-            FlySpeed = math.floor(rel * 180 + 20)
-            val.Text = tostring(FlySpeed)
-            label.Text = "Fly Speed: " .. FlySpeed
-            if FlyEnabled and FlyBV then FlyBV.Velocity = FlyBV.Velocity.unit * FlySpeed end
-        end
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = state and "ON" or "OFF"
+        btn.BackgroundColor3 = state and Color3.fromRGB(200,160,255) or Color3.fromRGB(180,140,255)
+        callback(state)
     end)
 end
 
--- === MAIN TAB ===
-createToggle(mainTab, "Fly", function()
-    FlyEnabled = true
-    FlyBV = Instance.new("BodyVelocity")
-    FlyBV.MaxForce = Vector3.new(1e5,1e5,1e5)
-    FlyBV.Velocity = Vector3.new()
-    FlyBV.Parent = rootPart
-    task.spawn(function()
-        while FlyEnabled and task.wait() do
-            local cam = Workspace.CurrentCamera
-            local dir = Vector3.new()
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-            FlyBV.Velocity = dir.unit * FlySpeed
-        end
-    end)
-end, function()
-    FlyEnabled = false
-    if FlyBV then FlyBV:Destroy() end
-end)
-createFlySlider(mainTab)
-
-createToggle(mainTab, "Invisibility", function()
-    InvisEnabled = true
-    for _, v in character:GetDescendants() do
-        if v:IsA("BasePart") then v.Transparency = 1 end
-        if v:IsA("Decal") then v.Transparency = 1 end
-    end
-end, function()
-    InvisEnabled = false
-    for _, v in character:GetDescendants() do
-        if v:IsA("BasePart") then v.Transparency = 0 end
-        if v:IsA("Decal") then v.Transparency = 0 end
+-- === FLY ===
+toggle(mainTab, "Fly", function(state)
+    FlyEnabled = state
+    if state then
+        FlyBV = Instance.new("BodyVelocity")
+        FlyBV.MaxForce = Vector3.new(1e5,1e5,1e5)
+        FlyBV.Parent = rootPart
+        task.spawn(function()
+            while FlyEnabled do
+                local cam = Workspace.CurrentCamera
+                local dir = Vector3.new()
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+                FlyBV.Velocity = dir.Magnitude > 0 and dir.unit * FlySpeed or Vector3.new()
+                task.wait()
+            end
+        end)
+    else
+        if FlyBV then FlyBV:Destroy() end
     end
 end)
 
-createToggle(mainTab, "Aimbot (Hold RMB)", function()
-    AimbotEnabled = true
-    AimbotLoop = RunService.RenderStepped:Connect(function()
-        if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
-        local closest = nil
-        local dist = math.huge
-        for _, p in Players:GetPlayers() do
-            if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                local head = p.Character.Head
-                local screenPos, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local d = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if d < dist and d < 200 then
-                        dist = d
-                        closest = head
+-- === ESP ===
+toggle(extraTab, "ESP", function(state)
+    ESP_Enabled = state
+    if state then
+        ESP_Loop = RunService.RenderStepped:Connect(function()
+            for _, p in Players:GetPlayers() do
+                if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+                    local head = p.Character.Head
+                    local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local sp, on = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                        if on then
+                            local dist = math.floor((hrp.Position - rootPart.Position).Magnitude)
+                            local box = ESP_Objects[p] or Drawing.new("Square")
+                            local name = ESP_Objects[p] and ESP_Objects[p].name or Drawing.new("Text")
+
+                            local size = (300 / sp.Z) * 2
+                            box.Size = Vector2.new(size, size*1.8)
+                            box.Position = Vector2.new(sp.X - size/2, sp.Y - size*0.9)
+                            box.Thickness = 2; box.Color = Color3.new(1,0,0); box.Filled = false; box.Visible = true
+
+                            name.Text = p.Name.." ["..dist.."m]"
+                            name.Position = Vector2.new(sp.X, sp.Y - size*0.9 - 20)
+                            name.Size = 16; name.Center = true; name.Outline = true; name.Color = Color3.new(1,1,1); name.Visible = true
+
+                            ESP_Objects[p] = {box=box, name=name}
+                        end
                     end
                 end
             end
-        end
-        if closest then
-            Workspace.CurrentCamera.CFrame = CFrame.new(Workspace.CurrentCamera.CFrame.Position, closest.Position)
-        end
-    end)
-end, function()
-    AimbotEnabled = false
-    if AimbotLoop then AimbotLoop:Disconnect() end
+        end)
+    else
+        if ESP_Loop then ESP_Loop:Disconnect() end
+        for _, v in ESP_Objects do pcall(function() v.box:Remove() v.name:Remove() end) end
+        ESP_Objects = {}
+    end
 end)
 
--- === EXTRA TAB ===
-createToggle(extraTab, "ESP", function()
-    ESP_Enabled = true
-    -- [ESP CODE FROM v4.0 - shortened for space]
-    -- Full ESP with box + name + distance
-end, function()
-    ESP_Enabled = false
-    for _, v in ESP_Objects do v:Remove() end
-    ESP_Objects = {}
-end)
-
-createToggle(extraTab, "Auto-Arrest", function()
-    AutoArrest_Enabled = true
-    ArrestLoop = task.spawn(function()
-        while AutoArrest_Enabled and task.wait(0.5) do
-            for _, p in Players:GetPlayers() do
-                if p.Team and p.Team.Name == "Inmates" and p.Character then
-                    fire(ReplicatedStorage.Remotes.arrest, p.Character.HumanoidRootPart)
-                end
-            end
-        end
-    end)
-end, function()
-    AutoArrest_Enabled = false
-    if ArrestLoop then task.cancel(ArrestLoop) end
-end)
-
-createToggle(extraTab, "Gun Mods", function() GunMods_Enabled = true end, function() GunMods_Enabled = false end)
-
-createToggle(extraTab, "Dark Mode", function()
-    DarkMode = true
-    updateColors()
-end, function()
-    DarkMode = false
-    updateColors()
-end)
-
--- === TELEPORT & TEAMS (same as before) ===
--- [Shortened for space - same as v4.0]
-
-print("Celestia Hub v5.0 LOADED | ALL FEATURES VISIBLE | FLY SLIDER + INVIS + AIMBOT")
+print("CELESTIA HUB LOADED – GUI VISIBLE")
