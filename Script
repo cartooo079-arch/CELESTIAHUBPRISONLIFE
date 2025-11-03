@@ -1,13 +1,5 @@
--- CELESTIA HUB v9.0 - PRISON LIFE - 100% WORKING
--- NO '...' ERROR | NO VARARG | NO CORE GUI | GUI LOADS
-
--- === FORCE CLEAN ENVIRONMENT ===
-do
-    local env = getfenv()
-    local mt = {__index = _G}
-    setmetatable(env, mt)
-    setfenv(1, env)
-end
+-- CELESTIA HUB v9.0 - PRISON LIFE - FIXED LOAD SCRIPT
+-- Safe load, GUI functional, no vararg or coregui issues
 
 -- === WAIT FOR GAME ===
 repeat task.wait() until game:IsLoaded()
@@ -18,15 +10,15 @@ repeat task.wait() until game.Players.LocalPlayer:FindFirstChild("PlayerGui")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+
 local player = Players.LocalPlayer
-local playerGui = player.PlayerGui
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- === GAME CHECK ===
 if game.PlaceId ~= 155615604 then
-    warn("Wrong game! Join Prison Life.")
-    return
+	warn("⚠️ Wrong game! This script is for PRISON LIFE only.")
+	return
 end
 
 -- === CHARACTER ===
@@ -41,181 +33,148 @@ local espEnabled = false
 local espLoop = nil
 local espBoxes = {}
 
--- === DELAY ===
-local function waitRand()
-    task.wait(0.1 + math.random() * 0.3)
+-- === GUI ===
+local function createGUI()
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "CelestiaHub"
+	gui.ResetOnSpawn = false
+	gui.Parent = playerGui
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 380, 0, 400)
+	frame.Position = UDim2.new(0.5, -190, 0.5, -200)
+	frame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	frame.Active = true
+	frame.Draggable = true
+	frame.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.Text = "CELESTIA HUB v9.0"
+	title.Size = UDim2.new(1, -60, 0, 50)
+	title.Position = UDim2.new(0, 15, 0, 0)
+	title.BackgroundTransparency = 1
+	title.TextColor3 = Color3.new(1, 1, 1)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 18
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = frame
+
+	local close = Instance.new("TextButton")
+	close.Text = "×"
+	close.Size = UDim2.new(0, 40, 0, 40)
+	close.Position = UDim2.new(1, -45, 0, 5)
+	close.BackgroundTransparency = 1
+	close.TextColor3 = Color3.new(1, 0.3, 0.3)
+	close.Font = Enum.Font.GothamBold
+	close.TextSize = 24
+	close.Parent = frame
+	close.MouseButton1Click:Connect(function()
+		gui:Destroy()
+	end)
+
+	local content = Instance.new("ScrollingFrame")
+	content.Size = UDim2.new(1, -20, 1, -70)
+	content.Position = UDim2.new(0, 10, 0, 60)
+	content.BackgroundTransparency = 1
+	content.ScrollBarThickness = 5
+	content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	content.Parent = frame
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.Parent = content
+
+	-- === Toggle Builder ===
+	local function addToggle(name, callback)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 40)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+		btn.Text = name .. " [OFF]"
+		btn.TextColor3 = Color3.new(1, 1, 1)
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 16
+		btn.Parent = content
+
+		local c = Instance.new("UICorner", btn)
+		c.CornerRadius = UDim.new(0, 8)
+
+		local state = false
+		btn.MouseButton1Click:Connect(function()
+			state = not state
+			btn.Text = name .. (state and " [ON]" or " [OFF]")
+			btn.BackgroundColor3 = state and Color3.fromRGB(100, 60, 150) or Color3.fromRGB(60, 60, 70)
+			callback(state)
+		end)
+	end
+
+	-- === Fly ===
+	addToggle("Fly", function(on)
+		flyEnabled = on
+		if on then
+			flyBV = Instance.new("BodyVelocity")
+			flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+			flyBV.Velocity = Vector3.zero
+			flyBV.Parent = rootPart
+
+			task.spawn(function()
+				while flyEnabled and task.wait() do
+					local cam = Workspace.CurrentCamera
+					local dir = Vector3.zero
+					if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+					if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+					if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+					if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+					if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+					if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.yAxis end
+					flyBV.Velocity = dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero
+				end
+			end)
+		else
+			if flyBV then flyBV:Destroy() flyBV = nil end
+		end
+	end)
+
+	-- === ESP (simple Billboard) ===
+	addToggle("ESP", function(on)
+		espEnabled = on
+		if on then
+			for _, p in ipairs(Players:GetPlayers()) do
+				if p ~= player then
+					local char = p.Character or p.CharacterAdded:Wait()
+					local head = char:WaitForChild("Head", 5)
+					if head then
+						local billboard = Instance.new("BillboardGui")
+						billboard.Size = UDim2.new(0, 100, 0, 30)
+						billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+						billboard.AlwaysOnTop = true
+						billboard.Parent = head
+
+						local label = Instance.new("TextLabel")
+						label.Size = UDim2.new(1, 0, 1, 0)
+						label.BackgroundTransparency = 1
+						label.Text = p.Name
+						label.TextColor3 = Color3.new(1, 1, 1)
+						label.Font = Enum.Font.GothamBold
+						label.TextSize = 14
+						label.Parent = billboard
+
+						espBoxes[p] = billboard
+					end
+				end
+			end
+		else
+			for _, v in pairs(espBoxes) do
+				if v then v:Destroy() end
+			end
+			espBoxes = {}
+		end
+	end)
+
+	print("✅ CELESTIA HUB v9.0 LOADED – GUI VISIBLE")
 end
 
-local function fireRemote(remote, ...)
-    pcall(function()
-        remote:FireServer(...)
-    end)
-    waitRand()
-end
-
--- === GUI (100% SAFE) ===
-local success, err = pcall(function()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "CelestiaHub"
-    gui.ResetOnSpawn = false
-    gui.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 380, 0, 400)
-    frame.Position = UDim2.new(0.5, -190, 0.5, -200)
-    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = gui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = frame
-
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Text = "CELESTIA HUB v9.0"
-    title.Size = UDim2.new(1, -60, 0, 50)
-    title.Position = UDim2.new(0, 15, 0, 0)
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.new(1,1,1)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 18
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = frame
-
-    -- Close
-    local close = Instance.new("TextButton")
-    close.Text = "×"
-    close.Size = UDim2.new(0, 40, 0, 40)
-    close.Position = UDim2.new(1, -45, 0, 5)
-    close.BackgroundTransparency = 1
-    close.TextColor3 = Color3.new(1,0.3,0.3)
-    close.Font = Enum.Font.GothamBold
-    close.TextSize = 24
-    close.Parent = frame
-    close.MouseButton1Click:Connect(function()
-        gui:Destroy()
-    end)
-
-    -- Content
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, -20, 1, -70)
-    content.Position = UDim2.new(0, 10, 0, 60)
-    content.BackgroundTransparency = 1
-    content.ScrollBarThickness = 5
-    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    content.Parent = frame
-
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.Parent = content
-
-    -- Toggle Creator
-    local function addToggle(name, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 40)
-        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-        btn.Text = name .. " [OFF]"
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 16
-        btn.Parent = content
-
-        local c = Instance.new("UICorner", btn)
-        c.CornerRadius = UDim.new(0, 8)
-
-        local state = false
-        btn.MouseButton1Click:Connect(function()
-            state = not state
-            btn.Text = name .. (state and " [ON]" or " [OFF]")
-            btn.BackgroundColor3 = state and Color3.fromRGB(100, 60, 150) or Color3.fromRGB(60, 60, 70)
-            callback(state)
-        end)
-    end
-
-    -- === FLY ===
-    addToggle("Fly", function(on)
-        flyEnabled = on
-        if on then
-            flyBV = Instance.new("BodyVelocity")
-            flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            flyBV.Velocity = Vector3.new()
-            flyBV.Parent = rootPart
-
-            task.spawn(function()
-                while flyEnabled and task.wait() do
-                    local cam = Workspace.CurrentCamera
-                    local dir = Vector3.new()
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
-                    flyBV.Velocity = dir.Magnitude > 0 and dir.unit * flySpeed or Vector3.new()
-                end
-            end)
-        else
-            if flyBV then flyBV:Destroy() flyBV = nil end
-        end
-    end)
-
-    -- === ESP ===
-    addToggle("ESP", function(on)
-        espEnabled = on
-        if on then
-            if espLoop then espLoop:Disconnect() end
-            espBoxes = {}
-
-            espLoop = RunService.RenderStepped:Connect(function()
-                if not espEnabled then return end
-                for _, p in Players:GetPlayers() do
-                    if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
-                        local head = p.Character.Head
-                        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            local sp, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(head.Position)
-                            if onScreen then
-                                local dist = math.floor((hrp.Position - rootPart.Position).Magnitude)
-                                local box = espBoxes[p] or Drawing.new("Square")
-                                local txt = espBoxes[p] and espBoxes[p].txt or Drawing.new("Text")
-
-                                local size = (300 / sp.Z) * 2
-                                box.Size = Vector2.new(size, size * 1.8)
-                                box.Position = Vector2.new(sp.X - size/2, sp.Y - size * 0.9)
-                                box.Thickness = 2
-                                box.Color = Color3.new(1,0,0)
-                                box.Filled = false
-                                box.Visible = true
-
-                                txt.Text = p.Name .. " [" .. dist .. "m]"
-                                txt.Position = Vector2.new(sp.X, sp.Y - size * 0.9 - 20)
-                                txt.Size = 16
-                                txt.Center = true
-                                txt.Outline = true
-                                txt.Color = Color3.new(1,1,1)
-                                txt.Visible = true
-
-                                espBoxes[p] = {box = box, txt = txt}
-                            end
-                        end
-                    end
-                end
-            end)
-        else
-            if espLoop then espLoop:Disconnect() espLoop = nil end
-            for _, v in espBoxes do
-                pcall(function() v.box:Remove() v.txt:Remove() end)
-            end
-            espBoxes = {}
-        end
-    end)
-
-    -- === SUCCESS ===
-    print("CELESTIA HUB v9.0 LOADED – GUI VISIBLE")
-end)
-
-if not success then
-    warn("GUI ERROR: " .. tostring(err))
-end
+pcall(createGUI)
