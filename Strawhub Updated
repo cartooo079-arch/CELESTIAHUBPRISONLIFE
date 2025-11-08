@@ -1,0 +1,413 @@
+-- Straw Universal v3.6 | FLY SPEED FIXED: 10 = NORMAL | 500 = INSANE
+-- Fly | ESP | Noclip | Speed Enabler | Random TP
+
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+
+local player   = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- === SAFE NEW ===
+local function new(class, props)
+    local obj = Instance.new(class)
+    for k, v in pairs(props or {}) do pcall(function() obj[k] = v end) end
+    return obj
+end
+
+-- === GUI ===
+local ScreenGui = new("ScreenGui", {Name = "StrawUniversal", Parent = game.CoreGui, ResetOnSpawn = false})
+
+local MainFrame = new("Frame", {
+    Parent = ScreenGui,
+    BackgroundColor3 = Color3.fromRGB(20, 15, 25),
+    BorderSizePixel = 0,
+    Position = UDim2.new(0.25, 0, 0.2, 0),
+    Size = UDim2.new(0, 540, 0, 420),
+    Active = true,
+    Draggable = true,
+    Visible = true
+})
+new("UICorner", {Parent = MainFrame, CornerRadius = UDim.new(0, 16)})
+new("UIStroke", {Parent = MainFrame, Color = Color3.fromRGB(150, 100, 255), Thickness = 2.6})
+
+-- Title
+local Title = new("TextLabel", {
+    Parent = MainFrame,
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, -70, 0, 50),
+    Position = UDim2.new(0, 35, 0, 12),
+    Text = "Straw Universal – Press H to Hide",
+    TextColor3 = Color3.fromRGB(150, 255, 200),
+    Font = Enum.Font.GothamBold,
+    TextSize = 20,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+-- Close
+local CloseBtn = new("TextButton", {
+    Parent = MainFrame,
+    BackgroundTransparency = 1,
+    Size = UDim2.new(0, 40, 0, 40),
+    Position = UDim2.new(1, -50, 0, 12),
+    Text = "X",
+    TextColor3 = Color3.fromRGB(255, 120, 120),
+    Font = Enum.Font.GothamBold,
+    TextSize = 26
+})
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+
+-- === SECTION BUILDER ===
+local colX = {35, 285}
+local yLeft = 70
+local yRight = 70
+
+local function sectionTitle(text, col)
+    local y = col == 1 and yLeft or yRight
+    local lbl = new("TextLabel", {
+        Parent = MainFrame,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 240, 0, 28),
+        Position = UDim2.new(0, colX[col], 0, y),
+        Text = "▸ " .. text,
+        TextColor3 = Color3.fromRGB(180, 255, 180),
+        Font = Enum.Font.GothamBold,
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+    if col == 1 then yLeft += 34 else yRight += 34 end
+    return lbl
+end
+
+local function addToggle(name, col, offCol, onCol)
+    local y = col == 1 and yLeft or yRight
+    local btn = new("TextButton", {
+        Parent = MainFrame,
+        BackgroundColor3 = offCol,
+        Size = UDim2.new(0, 240, 0, 46),
+        Position = UDim2.new(0, colX[col], 0, y),
+        Text = name .. ": OFF",
+        TextColor3 = Color3.fromRGB(255, 150, 150),
+        Font = Enum.Font.GothamBold,
+        TextSize = 16
+    })
+    new("UICorner", {Parent = btn, CornerRadius = UDim.new(0, 12)})
+    if col == 1 then yLeft += 52 else yRight += 52 end
+    return btn, offCol, onCol
+end
+
+local function addInput(placeholder, default, col)
+    local y = col == 1 and yLeft or yRight
+    local box = new("TextBox", {
+        Parent = MainFrame,
+        BackgroundColor3 = Color3.fromRGB(50, 35, 65),
+        Size = UDim2.new(0, 240, 0, 38),
+        Position = UDim2.new(0, colX[col], 0, y),
+        PlaceholderText = placeholder,
+        Text = default or "",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        Font = Enum.Font.Gotham,
+        TextSize = 15
+    })
+    new("UICorner", {Parent = box, CornerRadius = UDim.new(0, 10)})
+    if col == 1 then yLeft += 44 else yRight += 44 end
+    return box
+end
+
+-- === LEFT COLUMN ===
+sectionTitle("FLY CONTROLS", 1)
+local FlyToggle, flyOff, flyOn = addToggle("Fly", 1, Color3.fromRGB(60,40,80), Color3.fromRGB(40,100,60))
+local FlySpeedBox = addInput("Speed (10-500)", "50", 1)  -- Default 50 = comfy
+
+sectionTitle("ESP SETTINGS", 1)
+local ESPToggle, espOff, espOn = addToggle("ESP", 1, Color3.fromRGB(60,40,80), Color3.fromRGB(40,100,60))
+local ESPLimitBox = addInput("Max Distance (50-1000)", "300", 1)
+
+sectionTitle("NOCLIP", 1)
+local NoclipToggle, ncOff, ncOn = addToggle("Noclip", 1, Color3.fromRGB(60,40,80), Color3.fromRGB(40,100,60))
+
+-- === RIGHT COLUMN ===
+sectionTitle("SPEED CONTROL", 2)
+local SpeedEnabler, seOff, seOn = addToggle("Speed Enabler", 2, Color3.fromRGB(60,40,80), Color3.fromRGB(40,100,60))
+local SpeedBox = addInput("WalkSpeed (1-500)", "16", 2)
+
+sectionTitle("TELEPORT", 2)
+local RandomTPBtn = new("TextButton", {
+    Parent = MainFrame,
+    BackgroundColor3 = Color3.fromRGB(120,60,180),
+    Size = UDim2.new(0, 240, 0, 50),
+    Position = UDim2.new(0, colX[2], 0, yRight),
+    Text = "Teleport to Random",
+    TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 17
+})
+new("UICorner", {Parent = RandomTPBtn, CornerRadius = UDim.new(0, 12)})
+
+-- === VARIABLES ===
+local isFlying = false; local flySpeed = 50
+local espEnabled = false; local espDistance = 300
+local noclipEnabled = false
+local speedEnabled = false; local currentSpeed = 16
+local bodyGyro, bodyVelocity
+local espObjects = {}
+local noclipConn, speedConn
+
+-- === FLY – PERFECT SPEED SCALING ===
+local function startFly()
+    if isFlying then return end; isFlying = true
+    FlyToggle.Text = "Fly: ON"; FlyToggle.TextColor3 = Color3.fromRGB(150,255,150)
+    FlyToggle.BackgroundColor3 = flyOn
+
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.P = 9e4
+    bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
+
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bodyVelocity.Velocity = Vector3.new()
+    bodyVelocity.Parent = rootPart
+
+    spawn(function()
+        while isFlying and rootPart and rootPart.Parent do
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new()
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move -= Vector3.new(0,1,0) end
+
+            -- SCALED SPEED: 10 = normal, 500 = insane
+            local baseSpeed = 16  -- Roblox default walk speed
+            local multiplier = flySpeed / 10
+            local finalSpeed = baseSpeed * multiplier * 3  -- Boosted for flight feel
+
+            bodyVelocity.Velocity = move.Magnitude > 0 and (move.Unit * finalSpeed) or Vector3.new()
+            bodyGyro.CFrame = cam.CFrame
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end
+
+local function stopFly()
+    isFlying = false
+    FlyToggle.Text = "Fly: OFF"; FlyToggle.TextColor3 = Color3.fromRGB(255,150,150)
+    FlyToggle.BackgroundColor3 = flyOff
+    if bodyGyro then bodyGyro:Destroy(); bodyGyro = nil end
+    if bodyVelocity then bodyVelocity:Destroy(); bodyVelocity = nil end
+
+    -- DISABLE NOCLIP
+    if noclipEnabled then
+        noclipEnabled = false
+        NoclipToggle.Text = "Noclip: OFF"
+        NoclipToggle.TextColor3 = Color3.fromRGB(255,150,150)
+        NoclipToggle.BackgroundColor3 = ncOff
+        if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+        if character then
+            for _, p in character:GetDescendants() do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                    p.CanCollide = true
+                end
+            end
+        end
+    end
+end
+FlyToggle.MouseButton1Click:Connect(function() if isFlying then stopFly() else startFly() end end)
+
+FlySpeedBox.FocusLost:Connect(function(enter)
+    if enter then
+        local n = tonumber(FlySpeedBox.Text)
+        if n and n >= 10 and n <= 500 then
+            flySpeed = n
+            FlySpeedBox.Text = tostring(flySpeed)
+        else
+            FlySpeedBox.Text = tostring(flySpeed)
+        end
+    end
+end)
+FlySpeedBox:GetPropertyChangedSignal("Text"):Connect(function()
+    FlySpeedBox.Text = FlySpeedBox.Text:gsub("[^%d]", "")
+end)
+
+-- === ESP ===
+local function isEnemy(p) return not p.Team or not player.Team or p.Team ~= player.Team end
+local function updateESP()
+    if not espEnabled then return end
+    for _, p in Players:GetPlayers() do
+        if p == player or not p.Character then continue end
+        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+        local dist = (rootPart.Position - hrp.Position).Magnitude
+        if dist > espDistance then
+            if espObjects[p] then for _, o in espObjects[p] do if o then o:Destroy() end end; espObjects[p] = nil end
+            continue
+        end
+        if not espObjects[p] then
+            local char = p.Character; local head = char:FindFirstChild("Head")
+            if not head then continue end
+            local box = Instance.new("BoxHandleAdornment")
+            box.Adornee = char; box.Size = char:GetExtentsSize() + Vector3.new(.3,.3,.3)
+            box.Color3 = isEnemy(p) and Color3.fromRGB(255,80,100) or Color3.fromRGB(100,255,150)
+            box.Transparency = .6; box.AlwaysOnTop = true; box.Parent = char
+
+            local bill = Instance.new("BillboardGui")
+            bill.Adornee = head; bill.Size = UDim2.new(0,120,0,60); bill.StudsOffset = Vector3.new(0,3,0)
+            bill.AlwaysOnTop = true; bill.Parent = head
+            local lbl = Instance.new("TextLabel", bill)
+            lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 1
+            lbl.Text = p.DisplayName; lbl.TextColor3 = Color3.fromRGB(255,255,255)
+            lbl.TextStrokeTransparency = 0; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 16
+
+            espObjects[p] = {box, bill}
+        end
+    end
+end
+
+local function toggleESP()
+    espEnabled = not espEnabled
+    ESPToggle.Text = "ESP: "..(espEnabled and "ON" or "OFF")
+    ESPToggle.TextColor3 = espEnabled and Color3.fromRGB(150,255,150) or Color3.fromRGB(255,150,150)
+    ESPToggle.BackgroundColor3 = espEnabled and espOn or espOff
+    if espEnabled then
+        spawn(function() while espEnabled do updateESP() task.wait(.5) end end)
+    else
+        for _, objs in espObjects do for _, o in objs do if o then o:Destroy() end end end
+        espObjects = {}
+    end
+end
+ESPToggle.MouseButton1Click:Connect(toggleESP)
+
+ESPLimitBox.FocusLost:Connect(function(enter)
+    if enter then
+        local n = tonumber(ESPLimitBox.Text)
+        if n and n >= 50 and n <= 1000 then espDistance = n end
+        ESPLimitBox.Text = tostring(espDistance)
+    end
+end)
+ESPLimitBox:GetPropertyChangedSignal("Text"):Connect(function() ESPLimitBox.Text = ESPLimitBox.Text:gsub("[^%d]","") end)
+
+-- === NOCLIP ===
+local function toggleNoclip()
+    if isFlying then return end
+    noclipEnabled = not noclipEnabled
+    NoclipToggle.Text = "Noclip: "..(noclipEnabled and "ON" or "OFF")
+    NoclipToggle.TextColor3 = noclipEnabled and Color3.fromRGB(150,255,150) or Color3.fromRGB(255,150,150)
+    NoclipToggle.BackgroundColor3 = noclipEnabled and ncOn or ncOff
+
+    if noclipEnabled then
+        noclipConn = RunService.Stepped:Connect(function()
+            if character and character.Parent then
+                for _, p in character:GetDescendants() do
+                    if p:IsA("BasePart") then p.CanCollide = false end
+                end
+            end
+        end)
+    else
+        if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+        if character and character.Parent then
+            for _, p in character:GetDescendants() do
+                if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                    p.CanCollide = true
+                end
+            end
+        end
+    end
+end
+NoclipToggle.MouseButton1Click:Connect(toggleNoclip)
+
+-- === SPEED ENABLER (FIXED) ===
+local function applySpeed()
+    if not humanoid or not humanoid.Parent then return end
+    local n = tonumber(SpeedBox.Text)
+    if n and n >= 1 and n <= 500 then
+        currentSpeed = n
+        humanoid.WalkSpeed = currentSpeed
+        SpeedBox.Text = tostring(currentSpeed)
+    else
+        SpeedBox.Text = tostring(currentSpeed)
+    end
+end
+
+local function toggleSpeed()
+    speedEnabled = not speedEnabled
+    SpeedEnabler.Text = "Speed Enabler: "..(speedEnabled and "ON" or "OFF")
+    SpeedEnabler.TextColor3 = speedEnabled and Color3.fromRGB(150,255,150) or Color3.fromRGB(255,150,150)
+    SpeedEnabler.BackgroundColor3 = speedEnabled and seOn or seOff
+
+    if speedEnabled then
+        applySpeed()
+        speedConn = RunService.Heartbeat:Connect(function()
+            if humanoid and humanoid.Parent then
+                humanoid.WalkSpeed = currentSpeed
+            end
+        end)
+    else
+        if speedConn then speedConn:Disconnect(); speedConn = nil end
+        if humanoid and humanoid.Parent then
+            humanoid.WalkSpeed = 16
+        end
+    end
+end
+SpeedEnabler.MouseButton1Click:Connect(toggleSpeed)
+
+SpeedBox.FocusLost:Connect(function(enter)
+    if enter then applySpeed() end
+end)
+SpeedBox:GetPropertyChangedSignal("Text"):Connect(function() SpeedBox.Text = SpeedBox.Text:gsub("[^%d]","") end)
+
+-- === RANDOM TP ===
+local function randomTP()
+    local wasNoclip = noclipEnabled
+    if wasNoclip then toggleNoclip() end
+    local parts = {}
+    for _, p in workspace:GetDescendants() do
+        if p:IsA("BasePart") and p.Size.Magnitude > 15 and p.CanCollide and p.Parent ~= character then
+            table.insert(parts, p)
+        end
+    end
+    if #parts > 0 then
+        local target = parts[math.random(1,#parts)]
+        rootPart.CFrame = CFrame.new(target.Position + Vector3.new(0, target.Size.Y/2 + 6, 0))
+    end
+    if wasNoclip then task.wait(.1); toggleNoclip() end
+    RandomTPBtn.Text = "Teleported!"
+    task.delay(1.2, function() RandomTPBtn.Text = "Teleport to Random" end)
+end
+RandomTPBtn.MouseButton1Click:Connect(randomTP)
+
+-- === HOTKEY H ===
+UserInputService.InputBegan:Connect(function(k,gp)
+    if gp then return end
+    if k.KeyCode == Enum.KeyCode.H then MainFrame.Visible = not MainFrame.Visible end
+end)
+
+-- === RESPAWN ===
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if speedEnabled then task.wait(.5); toggleSpeed() end
+    if isFlying then task.wait(.5); startFly() end
+    if noclipEnabled then task.wait(.5); toggleNoclip() end
+end)
+
+-- === HOVER EFFECTS ===
+local function hover(btn, on, off)
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(.2), {BackgroundColor3=on}):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(.2), {BackgroundColor3=off}):Play() end)
+end
+hover(FlyToggle, Color3.fromRGB(80,60,100), flyOff)
+hover(ESPToggle, Color3.fromRGB(80,60,100), espOff)
+hover(NoclipToggle, Color3.fromRGB(80,60,100), ncOff)
+hover(SpeedEnabler, Color3.fromRGB(80,60,100), seOff)
+hover(RandomTPBtn, Color3.fromRGB(160,90,220), Color3.fromRGB(120,60,180))
+
+print("Straw Universal v3.6 LOADED – FLY SPEED PERFECT: 10 = NORMAL | 500 = INSANE!")
